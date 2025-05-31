@@ -20,6 +20,12 @@ export default function QRScanner({ onScanSuccess, onScanError, isActive, onClos
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [scanHistory, setScanHistory] = useState<Array<{
+    url: string;
+    timestamp: Date;
+    isValid: boolean;
+  }>>([]);
+  const [scanAttempts, setScanAttempts] = useState(0);
 
   useEffect(() => {
     if (!isActive) return;
@@ -193,6 +199,12 @@ export default function QRScanner({ onScanSuccess, onScanError, isActive, onClos
                 <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-blue-500"></div>
                 <div className="absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 border-blue-500"></div>
                 <div className="absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 border-blue-500"></div>
+                
+                {/* 掃描狀態指示 */}
+                <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-white text-center">
+                  <p className="text-sm">掃描次數: {scanAttempts}</p>
+                  <p className="text-xs opacity-75">將 QR Code 對準中央</p>
+                </div>
               </div>
             </div>
           </div>
