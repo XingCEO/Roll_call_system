@@ -1,5 +1,5 @@
 {
-  "name": "simple-roll-call-system",
+  "name": "realtime-roll-call-system",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -15,7 +15,7 @@
     "@remix-run/node": "^2.16.8",
     "@remix-run/react": "^2.16.8",
     "@remix-run/serve": "^2.16.8",
-    "@vercel/kv": "^3.0.0",
+    "@vercel/kv": "^1.0.1",
     "isbot": "^4.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
