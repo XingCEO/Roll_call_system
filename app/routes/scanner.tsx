@@ -263,33 +263,45 @@ export default function Scanner() {
             <h3 className="text-lg font-semibold mb-4 text-gray-800">🧪 測試功能</h3>
             <div className="space-y-4">
               <div>
-                <p className="text-gray-600 mb-2">
-                  點擊下方按鈕模擬掃描成功：
+                <p className="text-gray-600 mb-3">
+                  因為這是演示版本，真正的 QR Code 解碼尚未完全實現。<br/>
+                  請使用以下按鈕模擬掃描成功：
                 </p>
-                <button
-                  onClick={() => {
-                    const testUrl = `${window.location.origin}/attend?session=test_${Date.now()}&token=token_${Math.random().toString(36).substring(7)}`;
-                    console.log('🧪 模擬掃描結果:', testUrl);
-                    alert('✅ 模擬掃描成功！即將跳轉...');
-                    navigate(`/attend?session=test_${Date.now()}&token=token_${Math.random().toString(36).substring(7)}`);
-                  }}
-                  className="w-full px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                >
-                  🎯 模擬掃描成功
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => {
+                      const testUrl = `${window.location.origin}/attend?session=test_${Date.now()}&token=token_${Math.random().toString(36).substring(7)}`;
+                      console.log('🧪 模擬掃描結果:', testUrl);
+                      
+                      // 直接觸發掃描成功
+                      handleScanSuccess(testUrl);
+                    }}
+                    className="w-full px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                  >
+                    🎯 模擬掃描成功（新課程）
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      // 使用固定的測試 session，方便測試同一課程
+                      const testUrl = `${window.location.origin}/attend?session=fixed_test_session&token=token_${Math.random().toString(36).substring(7)}`;
+                      console.log('🧪 模擬掃描結果（固定課程）:', testUrl);
+                      
+                      handleScanSuccess(testUrl);
+                    }}
+                    className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    🎯 模擬掃描成功（固定課程）
+                  </button>
+                </div>
               </div>
               
               <div className="border-t pt-4">
-                <p className="text-gray-600 mb-2">
-                  或使用以下測試連結生成 QR Code：
+                <p className="text-gray-600 mb-2 text-sm">
+                  <strong>注意：</strong>相機功能目前只是展示，真正的 QR Code 掃描需要專業的解碼庫（如 jsQR）。
                 </p>
-                <div className="bg-white p-3 rounded border text-sm">
-                  <code className="text-gray-800 break-all">
-                    {typeof window !== 'undefined' ? window.location.origin : ''}/attend?session=test123&token=testtoken456
-                  </code>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  將此連結生成 QR Code 並掃描來測試功能
+                <p className="text-gray-500 text-xs">
+                  現在相機會開啟但不會自動檢測 QR Code，請使用上方測試按鈕。
                 </p>
               </div>
             </div>

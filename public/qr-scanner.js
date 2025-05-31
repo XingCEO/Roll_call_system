@@ -161,27 +161,21 @@
     detectQRCode(imageData) {
       console.log('🔍 正在檢測 QR Code...');
       
-      // 模擬檢測延遲
-      const shouldDetect = Math.random() > 0.5; // 50% 機率檢測到
+      // 移除自動檢測，只有在真正掃描到內容時才觸發
+      // 這裡應該是真正的 QR Code 解碼邏輯
       
-      if (shouldDetect) {
-        console.log('✅ 模擬檢測到 QR Code');
-        
-        // 檢查 URL 參數中是否有測試數據
-        const urlParams = new URLSearchParams(window.location.search);
-        let testUrl = null;
-        
-        // 如果在掃描頁面，生成測試點名連結
-        if (window.location.pathname === '/scanner') {
-          const sessionId = 'test_' + Date.now();
-          const token = 'token_' + Math.random().toString(36).substring(7);
-          testUrl = `${window.location.origin}/attend?session=${sessionId}&token=${token}`;
-          console.log('📱 生成測試點名連結:', testUrl);
-        }
-        
-        return testUrl || `${window.location.origin}/attend?session=demo&token=demo123`;
+      // 檢查是否有手動測試標記
+      const urlParams = new URLSearchParams(window.location.search);
+      const testMode = urlParams.get('test_qr');
+      
+      if (testMode === 'true') {
+        console.log('🧪 測試模式：生成測試 QR Code 結果');
+        const sessionId = 'test_' + Date.now();
+        const token = 'token_' + Math.random().toString(36).substring(7);
+        return `${window.location.origin}/attend?session=${sessionId}&token=${token}`;
       }
       
+      // 正常情況下不自動檢測，等待真正的 QR Code
       return null;
     }
 

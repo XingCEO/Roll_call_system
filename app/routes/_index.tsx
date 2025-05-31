@@ -336,7 +336,7 @@ export default function TeacherIndex() {
                 <div className="text-4xl mb-3">📱</div>
                 <h4 className="font-semibold mb-2">手機掃描點名</h4>
                 <p className="text-gray-600 text-sm mb-4">
-                  使用手機相機掃描上方 QR Code 即可進入點名頁面
+                  點擊按鈕開啟掃描器，然後使用測試按鈕模擬掃描
                 </p>
                 <a
                   href="/scanner"
@@ -347,20 +347,21 @@ export default function TeacherIndex() {
               </div>
               
               <div className="text-center">
-                <div className="text-4xl mb-3">💻</div>
-                <h4 className="font-semibold mb-2">電腦版測試</h4>
+                <div className="text-4xl mb-3">🧪</div>
+                <h4 className="font-semibold mb-2">快速測試點名</h4>
                 <p className="text-gray-600 text-sm mb-4">
-                  直接點擊下方按鈕進入點名頁面 (測試用)
+                  直接測試點名功能（需要先建立課程）
                 </p>
                 {currentSession ? (
-                  <a
-                    href={`/attend?session=${currentSession.id}&token=${currentSession.currentToken}`}
-                    className="inline-block px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => {
+                      const testUrl = `/attend?session=${currentSession.id}&token=${currentSession.currentToken}`;
+                      window.open(testUrl, '_blank', 'width=400,height=600');
+                    }}
+                    className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
                   >
-                    🖱️ 直接點名
-                  </a>
+                    🖱️ 快速點名測試
+                  </button>
                 ) : (
                   <button
                     disabled
@@ -370,6 +371,17 @@ export default function TeacherIndex() {
                   </button>
                 )}
               </div>
+            </div>
+            
+            {/* 說明文字 */}
+            <div className="mt-6 p-4 bg-yellow-50 rounded-lg">
+              <p className="text-yellow-800 text-sm">
+                <strong>📌 使用說明：</strong><br/>
+                1. 先在上方建立課程<br/>
+                2. 點擊「開啟掃描器」<br/>
+                3. 在掃描器頁面點擊「🎯 模擬掃描成功」按鈕<br/>
+                4. 或直接點擊「🖱️ 快速點名測試」
+              </p>
             </div>
           </div>
         </div>
