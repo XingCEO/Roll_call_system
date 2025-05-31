@@ -1,138 +1,398 @@
+// app/routes/_index.tsx
+import { useState, useEffect } from "react";
 import type { MetaFunction } from "@remix-run/node";
+import { getDatabase, type Session } from "~/utils/database";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "New Remix App" },
-    { name: "description", content: "Welcome to Remix!" },
+    { title: "動態點名系統 - 教師端" },
+    { name: "description", content: "基於動態 QR Code 的即時點名系統" },
   ];
 };
 
-export default function Index() {
+function generateQRCodeURL(sessionId: string, token: string): string {
+  const baseURL = typeof window !== 'undefined' ? window.location.origin : '';
+  const attendanceURL = `${baseURL}/attend?session=${sessionId}&token=${token}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(attendanceURL)}`;
+}
+
+export default function TeacherIndex() {
+  const [currentSession, setCurrentSession] = useState<Session | null>(null);
+  const [sessionName, setSessionName] = useState("");
+  const [qrCodeURL, setQrCodeURL] = useState("");
+  const [countdown, setCountdown] = useState(2);
+  const [isClient, setIsClient] = useState(false);
+
+  // 確保在客戶端運行
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // 建立新課程
+  const createNewSession = () => {
+    if (!sessionName.trim()) {
+      alert("請輸入課程名稱");
+      return;
+    }
+    
+    const db = getDatabase();
+    const session = db.createSession(sessionName.trim());
+    setCurrentSession(session);
+    setSessionName("");
+    updateQRCode(session);
+  };
+
+  // 更新 QR Code
+  const updateQRCode = (session: Session) => {
+    const db = getDatabase();
+    const updatedSession = db.updateToken(session.id);
+    if (updatedSession) {
+      setCurrentSession(updatedSession);
+      setQrCodeURL(generateQRCodeURL(updatedSession.id, updatedSession.currentToken));
+    }
+  };
+
+  // 結束課程
+  const endSession = () => {
+    if (currentSession) {
+      const db = getDatabase();
+      const endedSession = db.endSession(currentSession.id);
+      if (endedSession) {
+        setCurrentSession(null);
+        setQrCodeURL("");
+        setCountdown(2);
+      }
+    }
+  };
+
+  // 每 2 秒更新 QR Code
+  useEffect(() => {
+    if (!currentSession || !currentSession.isActive || !isClient) return;
+
+    const interval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          updateQRCode(currentSession);
+          return 2;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [currentSession, isClient]);
+
+  // 初始化 QR Code
+  useEffect(() => {
+    if (currentSession && currentSession.isActive && isClient) {
+      setQrCodeURL(generateQRCodeURL(currentSession.id, currentSession.currentToken));
+      setCountdown(2);
+    }
+  }, [currentSession, isClient]);
+
+  // 手動刷新出席名單
+  const refreshAttendance = () => {
+    if (currentSession) {
+      const db = getDatabase();
+      const session = db.getSession(currentSession.id);
+      if (session) {
+        setCurrentSession(session);
+      }
+    }
+  };
+
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">系統載入中...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="flex flex-col items-center gap-16">
-        <header className="flex flex-col items-center gap-9">
-          <h1 className="leading text-2xl font-bold text-gray-800 dark:text-gray-100">
-            Welcome to <span className="sr-only">Remix</span>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
+      <div className="max-w-6xl mx-auto px-4">
+        <header className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-800 mb-4">
+            🎯 動態點名系統
           </h1>
-          <div className="h-[144px] w-[434px]">
-            <img
-              src="/logo-light.png"
-              alt="Remix"
-              className="block w-full dark:hidden"
-            />
-            <img
-              src="/logo-dark.png"
-              alt="Remix"
-              className="hidden w-full dark:block"
-            />
+          <p className="text-gray-600 text-lg">
+            QR Code 每 2 秒自動更新，確保點名的即時性和安全性
+          </p>
+          <div className="mt-4 flex flex-wrap justify-center gap-4 text-sm text-gray-500">
+            <span>📱 支援手機掃描</span>
+            <span>🔄 自動更新 QR Code</span>
+            <span>📊 即時統計</span>
+            <span>💾 Console 資料庫</span>
           </div>
         </header>
-        <nav className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-gray-200 p-6 dark:border-gray-700">
-          <p className="leading-6 text-gray-700 dark:text-gray-200">
-            What&apos;s next?
-          </p>
-          <ul>
-            {resources.map(({ href, text, icon }) => (
-              <li key={href}>
-                <a
-                  className="group flex items-center gap-3 self-stretch p-3 leading-normal text-blue-700 hover:underline dark:text-blue-500"
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
+
+        {!currentSession ? (
+          <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-2xl mx-auto">
+            <div className="text-6xl mb-6">👨‍🏫</div>
+            <h2 className="text-2xl font-semibold mb-6">建立新的點名課程</h2>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <input
+                type="text"
+                value={sessionName}
+                onChange={(e) => setSessionName(e.target.value)}
+                placeholder="請輸入課程名稱 (例：資料結構與演算法)"
+                className="px-6 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg w-full sm:w-80"
+                onKeyPress={(e) => e.key === 'Enter' && createNewSession()}
+              />
+              <button
+                onClick={createNewSession}
+                className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-lg font-medium whitespace-nowrap"
+              >
+                🚀 開始點名
+              </button>
+            </div>
+            
+            <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+              <h3 className="font-semibold text-blue-800 mb-2">💡 系統特色</h3>
+              <ul className="text-blue-700 text-sm space-y-1">
+                <li>• 動態 QR Code 每 2 秒更新，防止代點名</li>
+                <li>• 學生掃描後輸入姓名即可完成點名</li>
+                <li>• 即時顯示出席統計和名單</li>
+                <li>• 所有資料記錄在瀏覽器 Console 中</li>
+              </ul>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+            {/* QR Code 區域 */}
+            <div className="xl:col-span-1 bg-white rounded-xl shadow-lg p-6 text-center">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800">
+                📱 {currentSession.name}
+              </h2>
+              
+              {qrCodeURL && (
+                <div className="mb-6">
+                  <img
+                    src={qrCodeURL}
+                    alt="點名 QR Code"
+                    className="mx-auto border-4 border-gray-200 rounded-xl shadow-md max-w-full h-auto"
+                  />
+                </div>
+              )}
+              
+              <div className="mb-6">
+                <div className="text-lg font-medium text-gray-700 mb-3">
+                  QR Code 將在 <span className="text-blue-600 font-bold text-xl">{countdown}</span> 秒後更新
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-1000 ease-linear"
+                    style={{ width: `${((2 - countdown) / 2) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Token: {currentSession.currentToken.substring(0, 8)}...
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => updateQRCode(currentSession)}
+                  className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
                 >
-                  {icon}
-                  {text}
+                  🔄 立即更新 QR Code
+                </button>
+                
+                <button
+                  onClick={endSession}
+                  className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  🏁 結束課程
+                </button>
+              </div>
+            </div>
+
+            {/* 出席統計區域 */}
+            <div className="xl:col-span-2 bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-800">📊 即時出席統計</h3>
+                <button
+                  onClick={refreshAttendance}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                >
+                  🔄 刷新
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-green-50 p-4 rounded-lg text-center">
+                  <div className="text-3xl font-bold text-green-600">
+                    {currentSession.attendees.length}
+                  </div>
+                  <div className="text-green-700 font-medium">已出席</div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg text-center">
+                  <div className="text-3xl font-bold text-blue-600">
+                    {currentSession.tokenHistory.length}
+                  </div>
+                  <div className="text-blue-700 font-medium">QR 更新次數</div>
+                </div>
+                
+                <div className="bg-purple-50 p-4 rounded-lg text-center">
+                  <div className="text-3xl font-bold text-purple-600">
+                    {Math.round((Date.now() - currentSession.createdAt.getTime()) / 1000 / 60)}
+                  </div>
+                  <div className="text-purple-700 font-medium">進行時間 (分鐘)</div>
+                </div>
+              </div>
+
+              {/* 出席名單 */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-700 mb-3">出席名單</h4>
+                <div className="max-h-80 overflow-y-auto space-y-2">
+                  {currentSession.attendees.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-4xl mb-2">👥</div>
+                      <p>尚無學生點名</p>
+                      <p className="text-sm">學生掃描 QR Code 後會顯示在這裡</p>
+                    </div>
+                  ) : (
+                    currentSession.attendees.map((attendee, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between bg-white px-4 py-3 rounded-lg shadow-sm"
+                      >
+                        <div className="flex items-center">
+                          <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-800">{attendee.name}</div>
+                            <div className="text-sm text-gray-500">
+                              {attendee.timestamp.toLocaleString('zh-TW')}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-green-600 font-medium">
+                          ✓ 已出席
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 學生操作區域 */}
+        <div className="mt-8">
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-xl font-semibold mb-4 text-gray-800">👨‍🎓 學生操作區</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="text-center">
+                <div className="text-4xl mb-3">📱</div>
+                <h4 className="font-semibold mb-2">手機掃描點名</h4>
+                <p className="text-gray-600 text-sm mb-4">
+                  使用手機相機掃描上方 QR Code 即可進入點名頁面
+                </p>
+                <a
+                  href="/scanner"
+                  className="inline-block px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  📲 開啟掃描器
                 </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-4xl mb-3">💻</div>
+                <h4 className="font-semibold mb-2">電腦版測試</h4>
+                <p className="text-gray-600 text-sm mb-4">
+                  直接點擊下方按鈕進入點名頁面 (測試用)
+                </p>
+                {currentSession ? (
+                  <a
+                    href={`/attend?session=${currentSession.id}&token=${currentSession.currentToken}`}
+                    className="inline-block px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    🖱️ 直接點名
+                  </a>
+                ) : (
+                  <button
+                    disabled
+                    className="px-6 py-3 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed"
+                  >
+                    請先建立課程
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 系統說明 */}
+        <div className="mt-8 bg-white rounded-xl shadow-lg p-6">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800">💡 系統使用說明</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-medium text-gray-700 mb-2">🏫 教師操作流程</h4>
+              <ol className="text-gray-600 text-sm space-y-1 list-decimal list-inside">
+                <li>輸入課程名稱並點擊「開始點名」</li>
+                <li>將 QR Code 顯示給學生掃描</li>
+                <li>即時查看出席統計和名單</li>
+                <li>課程結束後點擊「結束課程」</li>
+                <li>在瀏覽器 Console 查看完整記錄</li>
+              </ol>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-gray-700 mb-2">👨‍🎓 學生點名流程</h4>
+              <ol className="text-gray-600 text-sm space-y-1 list-decimal list-inside">
+                <li>使用手機掃描教師提供的 QR Code</li>
+                <li>在點名頁面輸入自己的姓名</li>
+                <li>點擊「確認點名」完成簽到</li>
+                <li>系統會顯示點名成功訊息</li>
+                <li>如果 QR Code 過期，請重新掃描</li>
+              </ol>
+            </div>
+          </div>
+          
+          <div className="mt-6 p-4 bg-yellow-50 rounded-lg">
+            <h4 className="font-medium text-yellow-800 mb-2">⚠️ 重要提醒</h4>
+            <ul className="text-yellow-700 text-sm space-y-1">
+              <li>• QR Code 每 2 秒自動更新，過期的 QR Code 無法使用</li>
+              <li>• 每位學生在同一課程中只能點名一次</li>
+              <li>• 所有點名記錄都會保存在瀏覽器 Console 中</li>
+              <li>• 建議使用現代瀏覽器以獲得最佳體驗</li>
+              <li>• 確保網路連接穩定以保證 QR Code 正常更新</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Console 操作說明 */}
+        {currentSession && (
+          <div className="mt-8 bg-gray-800 text-white rounded-xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold mb-4">🔧 Console 資料庫操作</h3>
+            <p className="text-gray-300 mb-4">按 F12 開啟開發者工具，在 Console 中輸入以下命令：</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="bg-gray-700 p-3 rounded">
+                <code className="text-green-400">exportRollCallData()</code>
+                <p className="text-gray-300 mt-1">匯出所有點名資料</p>
+              </div>
+              <div className="bg-gray-700 p-3 rounded">
+                <code className="text-green-400">getRollCallSessions()</code>
+                <p className="text-gray-300 mt-1">查看所有課程資料</p>
+              </div>
+              <div className="bg-gray-700 p-3 rounded">
+                <code className="text-green-400">cleanupRollCallData()</code>
+                <p className="text-gray-300 mt-1">清理過期資料</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-const resources = [
-  {
-    href: "https://remix.run/start/quickstart",
-    text: "Quick Start (5 min)",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="20"
-        viewBox="0 0 20 20"
-        fill="none"
-        className="stroke-gray-600 group-hover:stroke-current dark:stroke-gray-300"
-      >
-        <path
-          d="M8.51851 12.0741L7.92592 18L15.6296 9.7037L11.4815 7.33333L12.0741 2L4.37036 10.2963L8.51851 12.0741Z"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "https://remix.run/start/tutorial",
-    text: "Tutorial (30 min)",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="20"
-        viewBox="0 0 20 20"
-        fill="none"
-        className="stroke-gray-600 group-hover:stroke-current dark:stroke-gray-300"
-      >
-        <path
-          d="M4.561 12.749L3.15503 14.1549M3.00811 8.99944H1.01978M3.15503 3.84489L4.561 5.2508M8.3107 1.70923L8.3107 3.69749M13.4655 3.84489L12.0595 5.2508M18.1868 17.0974L16.635 18.6491C16.4636 18.8205 16.1858 18.8205 16.0144 18.6491L13.568 16.2028C13.383 16.0178 13.0784 16.0347 12.915 16.239L11.2697 18.2956C11.047 18.5739 10.6029 18.4847 10.505 18.142L7.85215 8.85711C7.75756 8.52603 8.06365 8.21994 8.39472 8.31453L17.6796 10.9673C18.0223 11.0653 18.1115 11.5094 17.8332 11.7321L15.7766 13.3773C15.5723 13.5408 15.5554 13.8454 15.7404 14.0304L18.1868 16.4767C18.3582 16.6481 18.3582 16.926 18.1868 17.0974Z"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "https://remix.run/docs",
-    text: "Remix Docs",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="20"
-        viewBox="0 0 20 20"
-        fill="none"
-        className="stroke-gray-600 group-hover:stroke-current dark:stroke-gray-300"
-      >
-        <path
-          d="M9.99981 10.0751V9.99992M17.4688 17.4688C15.889 19.0485 11.2645 16.9853 7.13958 12.8604C3.01467 8.73546 0.951405 4.11091 2.53116 2.53116C4.11091 0.951405 8.73546 3.01467 12.8604 7.13958C16.9853 11.2645 19.0485 15.889 17.4688 17.4688ZM2.53132 17.4688C0.951566 15.8891 3.01483 11.2645 7.13974 7.13963C11.2647 3.01471 15.8892 0.951453 17.469 2.53121C19.0487 4.11096 16.9854 8.73551 12.8605 12.8604C8.73562 16.9853 4.11107 19.0486 2.53132 17.4688Z"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "https://rmx.as/discord",
-    text: "Join Discord",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="20"
-        viewBox="0 0 24 20"
-        fill="none"
-        className="stroke-gray-600 group-hover:stroke-current dark:stroke-gray-300"
-      >
-        <path
-          d="M15.0686 1.25995L14.5477 1.17423L14.2913 1.63578C14.1754 1.84439 14.0545 2.08275 13.9422 2.31963C12.6461 2.16488 11.3406 2.16505 10.0445 2.32014C9.92822 2.08178 9.80478 1.84975 9.67412 1.62413L9.41449 1.17584L8.90333 1.25995C7.33547 1.51794 5.80717 1.99419 4.37748 2.66939L4.19 2.75793L4.07461 2.93019C1.23864 7.16437 0.46302 11.3053 0.838165 15.3924L0.868838 15.7266L1.13844 15.9264C2.81818 17.1714 4.68053 18.1233 6.68582 18.719L7.18892 18.8684L7.50166 18.4469C7.96179 17.8268 8.36504 17.1824 8.709 16.4944L8.71099 16.4904C10.8645 17.0471 13.128 17.0485 15.2821 16.4947C15.6261 17.1826 16.0293 17.8269 16.4892 18.4469L16.805 18.8725L17.3116 18.717C19.3056 18.105 21.1876 17.1751 22.8559 15.9238L23.1224 15.724L23.1528 15.3923C23.5873 10.6524 22.3579 6.53306 19.8947 2.90714L19.7759 2.73227L19.5833 2.64518C18.1437 1.99439 16.6386 1.51826 15.0686 1.25995ZM16.6074 10.7755L16.6074 10.7756C16.5934 11.6409 16.0212 12.1444 15.4783 12.1444C14.9297 12.1444 14.3493 11.6173 14.3493 10.7877C14.3493 9.94885 14.9378 9.41192 15.4783 9.41192C16.0471 9.41192 16.6209 9.93851 16.6074 10.7755ZM8.49373 12.1444C7.94513 12.1444 7.36471 11.6173 7.36471 10.7877C7.36471 9.94885 7.95323 9.41192 8.49373 9.41192C9.06038 9.41192 9.63892 9.93712 9.6417 10.7815C9.62517 11.6239 9.05462 12.1444 8.49373 12.1444Z"
-          strokeWidth="1.5"
-        />
-      </svg>
-    ),
-  },
-];
