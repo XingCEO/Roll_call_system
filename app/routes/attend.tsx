@@ -13,15 +13,20 @@ export const meta: MetaFunction = () => {
 // 獲取全域資料庫的函數
 const getGlobalDatabase = () => {
   if (typeof window !== 'undefined') {
-    // 嘗試從主視窗獲取資料庫
+    // 優先從主視窗獲取資料庫
     if (window.opener && window.opener.ROLL_CALL_DB) {
+      console.log('📡 使用主視窗的資料庫');
       return window.opener.ROLL_CALL_DB;
     }
+    
     // 或從當前視窗獲取
     if ((window as any).ROLL_CALL_DB) {
+      console.log('📡 使用當前視窗的資料庫');
       return (window as any).ROLL_CALL_DB;
     }
-    // 如果都沒有，初始化一個簡單的資料庫
+    
+    // 如果都沒有，建立並同步到主視窗
+    console.log('📡 建立新的資料庫實例');
     const simpleDB = {
       sessions: new Map(),
       addAttendee: function(sessionId: string, token: string, studentName: string) {
@@ -56,6 +61,19 @@ const getGlobalDatabase = () => {
         };
         
         session.attendees.push(attendanceRecord);
+        
+        // 同步到主視窗的資料庫
+        if (window.opener && window.opener.ROLL_CALL_DB) {
+          try {
+            if (window.opener.ROLL_CALL_DB.sessions.has(sessionId)) {
+              const mainSession = window.opener.ROLL_CALL_DB.sessions.get(sessionId);
+              mainSession.attendees.push(attendanceRecord);
+              console.log('🔄 已同步到主視窗資料庫');
+            }
+          } catch (error) {
+            console.log('⚠️ 同步到主視窗失敗:', error);
+          }
+        }
         
         console.group(`✅ 點名成功 - ${studentName}`);
         console.log(`📚 課程: ${session.name}`);

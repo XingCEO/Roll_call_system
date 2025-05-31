@@ -157,83 +157,16 @@
       }
     }
 
-    // QR Code 檢測 - 整合真正的檢測邏輯
+    // QR Code 檢測 - 移除自動檢測，只響應手動觸發
     detectQRCode(imageData) {
-      console.log('🔍 正在檢測 QR Code...');
-      
-      // 嘗試使用簡單的 URL 模式檢測
-      // 由於我們無法使用完整的 QR Code 解碼庫，我們使用基本的模式檢測
-      
-      // 檢查圖像中是否有類似 QR Code 的模式
-      const hasQRPattern = this.detectBasicQRPattern(imageData);
-      
-      if (hasQRPattern) {
-        console.log('✅ 檢測到疑似 QR Code 模式');
-        
-        // 由於無法真正解碼，我們返回一個基於當前時間的測試連結
-        // 在實際應用中，這裡應該是真正的 QR Code 解碼結果
-        const sessionId = 'scanned_' + Date.now();
-        const token = 'token_' + Math.random().toString(36).substring(7);
-        const detectedUrl = `${window.location.origin}/attend?session=${sessionId}&token=${token}`;
-        
-        console.log('📱 模擬解碼結果:', detectedUrl);
-        return detectedUrl;
-      }
-      
-      // 檢查是否有手動測試標記
-      const urlParams = new URLSearchParams(window.location.search);
-      const testMode = urlParams.get('test_qr');
-      
-      if (testMode === 'true') {
-        console.log('🧪 測試模式：生成測試 QR Code 結果');
-        const sessionId = 'test_' + Date.now();
-        const token = 'token_' + Math.random().toString(36).substring(7);
-        return `${window.location.origin}/attend?session=${sessionId}&token=${token}`;
-      }
-      
+      // 不執行任何自動檢測，等待手動觸發
+      // 真實的 QR Code 檢測需要專業庫如 jsQR
       return null;
     }
 
-    // 簡單的 QR Code 模式檢測
+    // 移除自動檢測功能
     detectBasicQRPattern(imageData) {
-      const { width, height } = imageData;
-      const data = imageData.data;
-      
-      // 簡化的檢測：尋找高對比度的方形區域
-      let darkPixels = 0;
-      let lightPixels = 0;
-      let totalPixels = 0;
-      
-      // 採樣檢查（每隔10個像素檢查一次以提高效能）
-      for (let y = 0; y < height; y += 10) {
-        for (let x = 0; x < width; x += 10) {
-          const index = (y * width + x) * 4;
-          const r = data[index];
-          const g = data[index + 1];
-          const b = data[index + 2];
-          
-          // 計算亮度
-          const brightness = (r + g + b) / 3;
-          
-          if (brightness < 128) {
-            darkPixels++;
-          } else {
-            lightPixels++;
-          }
-          totalPixels++;
-        }
-      }
-      
-      // 如果有足夠的對比度變化，認為可能是 QR Code
-      const contrastRatio = Math.min(darkPixels, lightPixels) / totalPixels;
-      const hasGoodContrast = contrastRatio > 0.1 && contrastRatio < 0.4;
-      
-      // 增加隨機因素來模擬真實檢測的不確定性
-      const randomDetection = Math.random() > 0.7; // 30% 機率檢測到
-      
-      console.log(`📊 檢測統計: 對比度=${contrastRatio.toFixed(3)}, 隨機檢測=${randomDetection}`);
-      
-      return hasGoodContrast && randomDetection;
+      return false;
     }
 
     toGrayscale(imageData) {

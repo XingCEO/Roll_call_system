@@ -42,6 +42,12 @@ export default function TeacherIndex() {
     setCurrentSession(session);
     setSessionName("");
     updateQRCode(session);
+    
+    // 確保資料庫可被其他視窗訪問
+    if (typeof window !== 'undefined') {
+      (window as any).ROLL_CALL_DB = db;
+      console.log('🔗 資料庫已設定為全域可訪問');
+    }
   };
 
   // 更新 QR Code
