@@ -119,21 +119,23 @@ export default function TeacherIndex() {
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === 'ATTENDANCE_SUCCESS') {
-        const { studentName, sessionId, timestamp } = event.data;
+        const { studentName, sessionId, timestamp, attendeeCount } = event.data;
+        
+        console.log(`📡 收到點名成功通知: ${studentName} (課程: ${sessionId})`);
         
         // 顯示成功通知
-        alert(`🎉 ${studentName} 點名成功！`);
+        alert(`🎉 ${studentName} 點名成功！目前共 ${attendeeCount} 人出席`);
         
-        // 如果是當前課程，更新出席名單
+        // 如果是當前課程，立即刷新出席名單
         if (currentSession && currentSession.id === sessionId) {
-          const db = getDatabase();
-          const session = db.getSession(sessionId);
-          if (session) {
-            setCurrentSession(session);
-          }
+          console.log('🔄 正在更新當前課程出席名單...');
+          refreshAttendance();
+          
+          // 額外延遲刷新以確保資料同步
+          setTimeout(() => {
+            refreshAttendance();
+          }, 1000);
         }
-        
-        console.log(`📊 收到點名成功通知: ${studentName}`);
       }
     };
 
