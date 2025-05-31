@@ -22,6 +22,8 @@ export default function TeacherIndex() {
   const [qrCodeURL, setQrCodeURL] = useState("");
   const [countdown, setCountdown] = useState(2);
   const [isClient, setIsClient] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [updateNotification, setUpdateNotification] = useState<string>('');
 
   // 確保在客戶端運行
   useEffect(() => {
@@ -96,7 +98,18 @@ export default function TeacherIndex() {
       const db = getDatabase();
       const session = db.getSession(currentSession.id);
       if (session) {
+        const oldCount = currentSession.attendees.length;
+        const newCount = session.attendees.length;
+        
         setCurrentSession(session);
+        setLastUpdate(new Date());
+        
+        if (newCount > oldCount) {
+          setUpdateNotification(`🎉 新增 ${newCount - oldCount} 位學生出席！總共 ${newCount} 人`);
+          // 3秒後清除通知
+          setTimeout(() => setUpdateNotification(''), 3000);
+        }
+        
         console.log('🔄 出席名單已刷新:', session.attendees);
       }
     }
@@ -123,19 +136,29 @@ export default function TeacherIndex() {
         
         console.log(`📡 收到點名成功通知: ${studentName} (課程: ${sessionId})`);
         
-        // 顯示成功通知
-        alert(`🎉 ${studentName} 點名成功！目前共 ${attendeeCount} 人出席`);
+        // 顯示大型成功通知
+        setUpdateNotification(`🎉 ${studentName} 點名成功！目前共 ${attendeeCount} 人出席`);
         
         // 如果是當前課程，立即刷新出席名單
         if (currentSession && currentSession.id === sessionId) {
           console.log('🔄 正在更新當前課程出席名單...');
+          
+          // 立即刷新
           refreshAttendance();
           
           // 額外延遲刷新以確保資料同步
           setTimeout(() => {
             refreshAttendance();
-          }, 1000);
+          }, 500);
+          
+          // 1.5秒後再次刷新
+          setTimeout(() => {
+            refreshAttendance();
+          }, 1500);
         }
+        
+        // 5秒後清除通知
+        setTimeout(() => setUpdateNotification(''), 5000);
       }
     };
 
@@ -290,7 +313,14 @@ export default function TeacherIndex() {
 
               {/* 出席名單 */}
               <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-700 mb-3">出席名單</h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-gray-700">出席名單</h4>
+                  {lastUpdate && (
+                    <span className="text-xs text-green-600">
+                      最後更新：{lastUpdate.toLocaleTimeString('zh-TW')}
+                    </span>
+                  )}
+                </div>
                 <div className="max-h-80 overflow-y-auto space-y-2">
                   {currentSession.attendees.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
@@ -302,10 +332,15 @@ export default function TeacherIndex() {
                     currentSession.attendees.map((attendee, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between bg-white px-4 py-3 rounded-lg shadow-sm"
+                        className={`flex items-center justify-between bg-white px-4 py-3 rounded-lg shadow-sm transition-all duration-300 ${
+                          // 最新的記錄加上特殊樣式
+                          index === 0 ? 'border-l-4 border-green-500 bg-green-50' : ''
+                        }`}
                       >
                         <div className="flex items-center">
-                          <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mr-3 ${
+                            index === 0 ? 'bg-green-500 text-white animate-pulse' : 'bg-blue-500 text-white'
+                          }`}>
                             {index + 1}
                           </div>
                           <div>
@@ -315,8 +350,10 @@ export default function TeacherIndex() {
                             </div>
                           </div>
                         </div>
-                        <div className="text-green-600 font-medium">
-                          ✓ 已出席
+                        <div className={`font-medium ${
+                          index === 0 ? 'text-green-600' : 'text-blue-600'
+                        }`}>
+                          {index === 0 ? '✨ 最新' : '✓ 已出席'}
                         </div>
                       </div>
                     ))

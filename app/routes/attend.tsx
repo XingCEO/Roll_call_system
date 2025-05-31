@@ -131,6 +131,7 @@ export default function Attend() {
       // 通知主視窗更新（如果存在）
       if (window.opener) {
         try {
+          // 立即通知
           window.opener.postMessage({
             type: 'ATTENDANCE_SUCCESS',
             studentName: studentName.trim(),
@@ -139,6 +140,19 @@ export default function Attend() {
             attendeeCount: result.session?.attendees.length || 1
           }, '*');
           console.log('📡 已通知主視窗更新出席名單');
+          
+          // 延遲再次通知以確保更新
+          setTimeout(() => {
+            window.opener.postMessage({
+              type: 'ATTENDANCE_SUCCESS',
+              studentName: studentName.trim(),
+              sessionId: sessionId,
+              timestamp: new Date().toISOString(),
+              attendeeCount: result.session?.attendees.length || 1
+            }, '*');
+            console.log('📡 延遲通知已發送');
+          }, 500);
+          
         } catch (error) {
           console.log('📡 無法通知主視窗:', error);
         }
