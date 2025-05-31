@@ -1,5 +1,5 @@
 {
-  "name": "roll-call-system",
+  "name": "simple-roll-call-system",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -36,8 +36,7 @@
     "tailwindcss": "^3.4.4",
     "typescript": "^5.1.6",
     "vite": "^6.0.0",
-    "vite-tsconfig-paths": "^4.2.1",
-    "vercel": "^37.4.0"
+    "vite-tsconfig-paths": "^4.2.1"
   },
   "engines": {
     "node": ">=20.0.0"

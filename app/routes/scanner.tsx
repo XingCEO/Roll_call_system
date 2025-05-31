@@ -1,321 +1,250 @@
-// app/routes/scanner.tsx
+// app/routes/scan.tsx
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "@remix-run/react";
+import { useSearchParams, Link } from "@remix-run/react";
 import type { MetaFunction } from "@remix-run/node";
-import QRScanner from "~/components/QRScanner";
+import { getStorage } from "~/utils/storage";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "QR Code 掃描器 - 動態點名系統" },
-    { name: "description", content: "使用相機掃描 QR Code 進行點名" },
+    { title: "掃描點名 - QR Code 點名系統" },
+    { name: "description", content: "掃描 QR Code 進行點名" },
   ];
 };
 
-export default function Scanner() {
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanHistory, setScanHistory] = useState<Array<{
-    url: string;
-    timestamp: Date;
-    isValid: boolean;
-  }>>([]);
-  const [error, setError] = useState<string>('');
-  const navigate = useNavigate();
+export default function Scan() {
+  const [searchParams] = useSearchParams();
+  const [studentName, setStudentName] = useState("");
+  const [status, setStatus] = useState<{
+    type: 'scan' | 'form' | 'success' | 'error';
+    message: string;
+  }>({ type: 'scan', message: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 檢查瀏覽器相機支援
+  const token = searchParams.get('token');
+
   useEffect(() => {
-    if (typeof navigator !== 'undefined' && !navigator.mediaDevices) {
-      setError('您的瀏覽器不支援相機功能，請使用現代瀏覽器');
-    }
-  }, []);
-
-  const handleScanSuccess = (result: string) => {
-    console.log('掃描結果:', result);
-    
-    // 驗證是否為有效的點名連結
-    const isValidAttendanceURL = result.includes('/attend?session=') && result.includes('token=');
-    
-    // 記錄掃描歷史
-    setScanHistory(prev => [{
-      url: result,
-      timestamp: new Date(),
-      isValid: isValidAttendanceURL
-    }, ...prev.slice(0, 4)]); // 只保留最近 5 筆記錄
-
-    if (isValidAttendanceURL) {
-      // 如果是有效的點名連結，直接跳轉
-      try {
-        const url = new URL(result);
-        const pathname = url.pathname;
-        const search = url.search;
-        setIsScanning(false);
-        navigate(pathname + search);
-      } catch (err) {
-        setError('無效的 QR Code 格式');
-      }
+    if (token) {
+      // 如果有 token 參數，表示是掃描後跳轉過來的
+      setStatus({ type: 'form', message: '' });
     } else {
-      // 如果不是點名連結，詢問用戶是否要開啟
-      const confirmOpen = window.confirm(
-        `掃描到的內容不是點名連結：\n${result}\n\n是否要開啟此連結？`
-      );
-      
-      if (confirmOpen) {
-        window.open(result, '_blank');
-      }
-      setIsScanning(false);
+      // 沒有 token，顯示掃描介面
+      setStatus({ type: 'scan', message: '' });
     }
+  }, [token]);
+
+  // 模擬掃描成功
+  const simulateScan = () => {
+    // 取得當前的 token（模擬掃描到的結果）
+    const storage = getStorage();
+    const session = storage.getCurrentSession();
+    
+    if (!session || !session.isActive) {
+      alert("目前沒有進行中的課程，請先在主頁面建立課程");
+      return;
+    }
+
+    // 模擬掃描成功，跳轉到表單頁面
+    const currentToken = session.currentToken;
+    window.location.href = `/scan?token=${currentToken}`;
   };
 
-  const handleScanError = (error: string) => {
-    console.error('掃描錯誤:', error);
-    setError(error);
-    setIsScanning(false);
-  };
+  // 提交點名
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!studentName.trim()) {
+      setStatus({ type: 'error', message: '請輸入您的姓名' });
+      return;
+    }
 
-  const startScanning = () => {
-    setError('');
-    setIsScanning(true);
-  };
+    if (!token) {
+      setStatus({ type: 'error', message: '無效的 QR Code' });
+      return;
+    }
 
-  const stopScanning = () => {
-    setIsScanning(false);
+    setIsSubmitting(true);
+    
+    // 模擬處理延遲
+    setTimeout(() => {
+      const storage = getStorage();
+      const result = storage.addAttendance(token, studentName.trim());
+      
+      if (result.success) {
+        setStatus({ type: 'success', message: result.message });
+      } else {
+        setStatus({ type: 'error', message: result.message });
+      }
+      
+      setIsSubmitting(false);
+    }, 1000);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100">
-      {/* QR Scanner 元件 */}
-      <QRScanner
-        isActive={isScanning}
-        onScanSuccess={handleScanSuccess}
-        onScanError={handleScanError}
-        onClose={stopScanning}
-      />
-
-      <div className="py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          {/* 標題 */}
-          <header className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-4">
-              📱 QR Code 掃描器
-            </h1>
-            <p className="text-gray-600">
-              點擊下方按鈕開始掃描點名 QR Code
-            </p>
-          </header>
-
-          {/* 主要操作區域 */}
-          <div className="bg-white rounded-xl shadow-lg p-8 text-center mb-8">
-            <div className="text-6xl mb-6">📷</div>
-            
-            {error && (
-              <div className="mb-6 p-4 bg-red-100 border border-red-200 rounded-lg">
-                <p className="text-red-800">{error}</p>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <button
-                onClick={startScanning}
-                disabled={!!error}
-                className={`w-full py-4 px-6 rounded-lg font-medium text-lg transition-colors ${
-                  error
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-blue-500 text-white hover:bg-blue-600'
-                }`}
-              >
-                {isScanning ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    掃描中...
-                  </div>
-                ) : (
-                  '📲 開始掃描 QR Code'
-                )}
-              </button>
-
-              <div className="flex gap-3">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center py-8">
+      <div className="max-w-md w-full mx-4">
+        <div className="bg-white rounded-xl shadow-xl overflow-hidden">
+          
+          {status.type === 'scan' && (
+            /* 掃描介面 */
+            <div className="p-8 text-center">
+              <div className="text-6xl mb-6">📱</div>
+              <h1 className="text-2xl font-bold text-gray-800 mb-4">
+                掃描 QR Code
+              </h1>
+              <p className="text-gray-600 mb-8">
+                將教師提供的 QR Code 對準相機掃描
+              </p>
+              
+              {/* 模擬掃描按鈕 */}
+              <div className="space-y-4">
+                <div className="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-6 text-left">
+                  <p className="text-yellow-800 text-sm">
+                    <strong>演示版本：</strong><br/>
+                    目前使用模擬掃描功能。<br/>
+                    請先在主頁面建立課程，然後點擊下方按鈕。
+                  </p>
+                </div>
+                
+                <button
+                  onClick={simulateScan}
+                  className="w-full py-4 px-6 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-lg font-medium"
+                >
+                  🎯 模擬掃描 QR Code
+                </button>
+                
                 <Link
                   to="/"
-                  className="flex-1 py-3 px-4 text-center border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="block w-full py-3 px-6 text-center border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   🏠 返回主頁
                 </Link>
-                <Link
-                  to="/attend"
-                  className="flex-1 py-3 px-4 text-center border border-green-300 text-green-700 rounded-lg hover:bg-green-50 transition-colors"
-                >
-                  ✏️ 手動輸入
-                </Link>
               </div>
-            </div>
-          </div>
-
-          {/* 使用說明 */}
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800">📋 使用說明</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-medium text-gray-700 mb-2">📱 掃描步驟</h4>
-                <ol className="text-gray-600 text-sm space-y-1 list-decimal list-inside">
-                  <li>點擊「開始掃描 QR Code」按鈕</li>
-                  <li>允許瀏覽器使用相機權限</li>
-                  <li>將 QR Code 對準掃描框</li>
-                  <li>系統自動識別並跳轉到點名頁面</li>
-                </ol>
-              </div>
-              
-              <div>
-                <h4 className="font-medium text-gray-700 mb-2">⚠️ 注意事項</h4>
-                <ul className="text-gray-600 text-sm space-y-1">
-                  <li>• 確保光線充足，QR Code 清晰可見</li>
-                  <li>• QR Code 每 2 秒更新，請掃描最新的</li>
-                  <li>• 支援前後鏡頭切換和閃光燈</li>
-                  <li>• 需要 HTTPS 環境才能使用相機功能</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* 掃描歷史 */}
-          {scanHistory.length > 0 && (
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold mb-4 text-gray-800">📝 掃描歷史</h3>
-              <div className="space-y-3">
-                {scanHistory.map((record, index) => (
-                  <div
-                    key={index}
-                    className={`p-3 rounded-lg border ${
-                      record.isValid
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-yellow-50 border-yellow-200'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={`text-sm font-medium ${
-                        record.isValid ? 'text-green-800' : 'text-yellow-800'
-                      }`}>
-                        {record.isValid ? '✅ 點名連結' : '⚠️ 其他連結'}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {record.timestamp.toLocaleTimeString('zh-TW')}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 break-all">
-                      {record.url.length > 60 
-                        ? `${record.url.substring(0, 60)}...` 
-                        : record.url
-                      }
-                    </p>
-                    {record.isValid && (
-                      <button
-                        onClick={() => {
-                          try {
-                            const url = new URL(record.url);
-                            navigate(url.pathname + url.search);
-                          } catch (err) {
-                            setError('無效的連結格式');
-                          }
-                        }}
-                        className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
-                      >
-                        重新使用此連結
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              
-              <button
-                onClick={() => setScanHistory([])}
-                className="mt-4 w-full py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded hover:bg-gray-50 transition-colors"
-              >
-                清空歷史記錄
-              </button>
             </div>
           )}
 
-          {/* 瀏覽器支援檢查 */}
-          <div className="mt-8 bg-blue-50 rounded-xl p-6">
-            <h3 className="text-lg font-semibold mb-4 text-blue-800">🔧 系統需求</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <h4 className="font-medium text-blue-700 mb-2">✅ 支援的瀏覽器</h4>
-                <ul className="text-blue-600 space-y-1">
-                  <li>• Chrome 53+ (推薦)</li>
-                  <li>• Firefox 68+</li>
-                  <li>• Safari 11+</li>
-                  <li>• Edge 79+</li>
-                </ul>
-              </div>
-              
-              <div>
-                <h4 className="font-medium text-blue-700 mb-2">⚙️ 功能檢查</h4>
-                <ul className="text-blue-600 space-y-1">
-                  <li>• 相機權限: {typeof navigator !== 'undefined' && navigator.mediaDevices ? '✅' : '❌'}</li>
-                  <li>• HTTPS 環境: {typeof location !== 'undefined' && location.protocol === 'https:' ? '✅' : '❌'}</li>
-                  <li>• 現代瀏覽器: {typeof Promise !== 'undefined' ? '✅' : '❌'}</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* 測試用 QR Code */}
-          <div className="mt-8 bg-gray-50 rounded-xl p-6">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800">🧪 測試說明</h3>
-            <div className="space-y-4">
-              
-              {/* 真實 QR Code 掃描說明 */}
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="font-medium text-blue-800 mb-2">📱 真實 QR Code 掃描</h4>
-                <p className="text-blue-700 text-sm mb-3">
-                  現在可以掃描真實的 QR Code了！將包含點名連結的 QR Code 對準相機，系統會自動檢測。
-                </p>
-                <p className="text-blue-600 text-xs">
-                  ✅ 檢測邏輯：尋找高對比度模式 + 隨機檢測（模擬真實解碼的不確定性）<br/>
-                  📊 檢測率：約 30%（與真實 QR Code 掃描器類似）
+          {status.type === 'form' && (
+            /* 點名表單 */
+            <div className="p-8">
+              <div className="text-center mb-6">
+                <div className="text-5xl mb-4">✅</div>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                  QR Code 掃描成功
+                </h1>
+                <p className="text-gray-600">
+                  請輸入您的姓名完成點名
                 </p>
               </div>
 
-              {/* 手動測試選項 */}
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h4 className="font-medium text-green-800 mb-2">🎯 手動測試選項</h4>
-                <p className="text-green-700 text-sm mb-3">
-                  如果無法掃描到 QR Code，可以使用以下按鈕模擬掃描成功：
-                </p>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => {
-                      const testUrl = `${window.location.origin}/attend?session=test_${Date.now()}&token=token_${Math.random().toString(36).substring(7)}`;
-                      console.log('🧪 手動模擬掃描結果:', testUrl);
-                      handleScanSuccess(testUrl);
-                    }}
-                    className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors text-sm"
-                  >
-                    🎯 模擬掃描成功（新課程）
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      const testUrl = `${window.location.origin}/attend?session=fixed_test_session&token=token_${Math.random().toString(36).substring(7)}`;
-                      console.log('🧪 模擬掃描結果（固定課程）:', testUrl);
-                      handleScanSuccess(testUrl);
-                    }}
-                    className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm"
-                  >
-                    🎯 模擬掃描成功（固定課程）
-                  </button>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    學生姓名 *
+                  </label>
+                  <input
+                    type="text"
+                    value={studentName}
+                    onChange={(e) => setStudentName(e.target.value)}
+                    placeholder="請輸入您的真實姓名"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+                    disabled={isSubmitting}
+                    maxLength={20}
+                    required
+                  />
                 </div>
+
+                {status.message && (
+                  <div className="p-4 rounded-lg text-center bg-red-100 text-red-800 border border-red-200">
+                    <p className="font-medium">{status.message}</p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !studentName.trim()}
+                  className={`w-full py-3 px-4 rounded-lg font-medium text-lg transition-colors ${
+                    isSubmitting || !studentName.trim()
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-green-500 text-white hover:bg-green-600'
+                  }`}
+                >
+                  {isSubmitting ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      處理中...
+                    </div>
+                  ) : (
+                    '📝 確認點名'
+                  )}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {status.type === 'success' && (
+            /* 成功頁面 */
+            <div className="p-8 text-center">
+              <div className="text-6xl mb-6">🎉</div>
+              <h1 className="text-2xl font-bold text-green-600 mb-4">
+                點名成功！
+              </h1>
+              <div className="bg-green-50 p-4 rounded-lg mb-6">
+                <p className="text-green-800 font-medium">{status.message}</p>
               </div>
               
-              {/* 技術說明 */}
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <h4 className="font-medium text-yellow-800 mb-2">⚡ 技術說明</h4>
-                <p className="text-yellow-700 text-xs">
-                  <strong>目前實現：</strong>基本圖像對比度檢測 + 模式識別<br/>
-                  <strong>真實應用：</strong>建議使用 jsQR 或 ZXing 等專業 QR Code 解碼庫<br/>
-                  <strong>檢測原理：</strong>分析圖像對比度變化，模擬 QR Code 的黑白方格模式
-                </p>
+              <div className="space-y-3">
+                <Link
+                  to="/"
+                  className="block w-full py-3 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-center transition-colors"
+                >
+                  🏠 返回主頁
+                </Link>
+                <button
+                  onClick={() => {
+                    setStatus({ type: 'form', message: '' });
+                    setStudentName('');
+                  }}
+                  className="w-full py-3 px-4 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  👥 幫其他同學點名
+                </button>
               </div>
             </div>
+          )}
+
+          {status.type === 'error' && (
+            /* 錯誤頁面 */
+            <div className="p-8 text-center">
+              <div className="text-6xl mb-6">❌</div>
+              <h1 className="text-2xl font-bold text-red-600 mb-4">
+                點名失敗
+              </h1>
+              <div className="bg-red-50 p-4 rounded-lg mb-6">
+                <p className="text-red-800 font-medium">{status.message}</p>
+              </div>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={() => setStatus({ type: 'scan', message: '' })}
+                  className="w-full py-3 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  🔄 重新掃描
+                </button>
+                <Link
+                  to="/"
+                  className="block w-full py-3 px-4 text-center border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  🏠 返回主頁
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* 底部說明 */}
+          <div className="bg-gray-50 px-8 py-4 border-t">
+            <p className="text-center text-sm text-gray-500">
+              ⚠️ QR Code 每 2 秒更新一次<br/>
+              請確保掃描最新的 QR Code
+            </p>
           </div>
         </div>
       </div>
