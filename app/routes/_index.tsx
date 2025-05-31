@@ -97,9 +97,21 @@ export default function TeacherIndex() {
       const session = db.getSession(currentSession.id);
       if (session) {
         setCurrentSession(session);
+        console.log('🔄 出席名單已刷新:', session.attendees);
       }
     }
   };
+
+  // 自動刷新出席名單 (每 3 秒)
+  useEffect(() => {
+    if (!currentSession || !currentSession.isActive || !isClient) return;
+
+    const refreshInterval = setInterval(() => {
+      refreshAttendance();
+    }, 3000); // 每 3 秒自動刷新
+
+    return () => clearInterval(refreshInterval);
+  }, [currentSession, isClient]);
 
   if (!isClient) {
     return (

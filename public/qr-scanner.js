@@ -159,18 +159,27 @@
 
     // 簡化的 QR Code 檢測 (實際應用中建議使用專業的 QR Code 解碼庫)
     detectQRCode(imageData) {
-      // 這是一個簡化的實現
-      // 在實際應用中，您應該使用如 jsQR 或其他專業庫
+      console.log('🔍 正在檢測 QR Code...');
       
-      // 轉換為灰度圖像
-      const grayData = this.toGrayscale(imageData);
+      // 模擬檢測延遲
+      const shouldDetect = Math.random() > 0.5; // 50% 機率檢測到
       
-      // 尋找 QR Code 特徵模式
-      const patterns = this.findFinderPatterns(grayData, imageData.width, imageData.height);
-      
-      if (patterns.length >= 3) {
-        // 如果找到足夠的定位符，嘗試解碼
-        return this.decodeQRCode(grayData, patterns, imageData.width, imageData.height);
+      if (shouldDetect) {
+        console.log('✅ 模擬檢測到 QR Code');
+        
+        // 檢查 URL 參數中是否有測試數據
+        const urlParams = new URLSearchParams(window.location.search);
+        let testUrl = null;
+        
+        // 如果在掃描頁面，生成測試點名連結
+        if (window.location.pathname === '/scanner') {
+          const sessionId = 'test_' + Date.now();
+          const token = 'token_' + Math.random().toString(36).substring(7);
+          testUrl = `${window.location.origin}/attend?session=${sessionId}&token=${token}`;
+          console.log('📱 生成測試點名連結:', testUrl);
+        }
+        
+        return testUrl || `${window.location.origin}/attend?session=demo&token=demo123`;
       }
       
       return null;

@@ -261,17 +261,38 @@ export default function Scanner() {
           {/* 測試用 QR Code */}
           <div className="mt-8 bg-gray-50 rounded-xl p-6">
             <h3 className="text-lg font-semibold mb-4 text-gray-800">🧪 測試功能</h3>
-            <p className="text-gray-600 mb-4">
-              可以使用以下連結生成測試 QR Code：
-            </p>
-            <div className="bg-white p-4 rounded border">
-              <code className="text-sm text-gray-800 break-all">
-                {typeof window !== 'undefined' ? window.location.origin : ''}/attend?session=test123&token=testtoken456
-              </code>
+            <div className="space-y-4">
+              <div>
+                <p className="text-gray-600 mb-2">
+                  點擊下方按鈕模擬掃描成功：
+                </p>
+                <button
+                  onClick={() => {
+                    const testUrl = `${window.location.origin}/attend?session=test_${Date.now()}&token=token_${Math.random().toString(36).substring(7)}`;
+                    console.log('🧪 模擬掃描結果:', testUrl);
+                    alert('✅ 模擬掃描成功！即將跳轉...');
+                    navigate(`/attend?session=test_${Date.now()}&token=token_${Math.random().toString(36).substring(7)}`);
+                  }}
+                  className="w-full px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                >
+                  🎯 模擬掃描成功
+                </button>
+              </div>
+              
+              <div className="border-t pt-4">
+                <p className="text-gray-600 mb-2">
+                  或使用以下測試連結生成 QR Code：
+                </p>
+                <div className="bg-white p-3 rounded border text-sm">
+                  <code className="text-gray-800 break-all">
+                    {typeof window !== 'undefined' ? window.location.origin : ''}/attend?session=test123&token=testtoken456
+                  </code>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  將此連結生成 QR Code 並掃描來測試功能
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              將此連結生成 QR Code 並掃描來測試功能
-            </p>
           </div>
         </div>
       </div>

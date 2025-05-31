@@ -132,14 +132,19 @@ class ConsoleDatabase {
 
     session.attendees.push(attendanceRecord);
     
-    this.logToConsole(
-      `點名成功: "${studentName}" - 課程: "${session.name}" (第 ${session.attendees.length} 位)`, 
-      'attendance'
-    );
+    // 強化 Console 顯示
+    console.group(`✅ 點名成功 - ${studentName}`);
+    console.log(`📚 課程: ${session.name}`);
+    console.log(`👤 學生: ${studentName}`);
+    console.log(`⏰ 時間: ${attendanceRecord.timestamp.toLocaleString('zh-TW')}`);
+    console.log(`🔢 序號: 第 ${session.attendees.length} 位`);
+    console.log(`🎫 Token: ${token.substring(0, 8)}...`);
+    console.groupEnd();
     
-    this.logToConsole(
-      `目前出席名單 (${session.attendees.length} 人): ${session.attendees.map(a => a.name).join(', ')}`, 
-      'attendance'
+    // 更新出席名單顯示
+    console.log(
+      `📊 目前出席名單 (${session.attendees.length} 人):`,
+      session.attendees.map((a, index) => `${index + 1}. ${a.name} (${a.timestamp.toLocaleTimeString('zh-TW')})`).join('\n')
     );
 
     return {
